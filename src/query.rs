@@ -48,24 +48,24 @@ use validator::Validate;
 /// ```
 #[derive(Clone)]
 pub struct QueryConfig {
-    pub ehandler: Option<Arc<dyn Fn(Error, &HttpRequest) -> actix_web::Error + Send + Sync>>,
+  pub ehandler: Option<Arc<dyn Fn(Error, &HttpRequest) -> actix_web::Error + Send + Sync>>,
 }
 
 impl QueryConfig {
-    /// Set custom error handler
-    pub fn error_handler<F>(mut self, f: F) -> Self
-    where
-        F: Fn(Error, &HttpRequest) -> actix_web::Error + Send + Sync + 'static,
-    {
-        self.ehandler = Some(Arc::new(f));
-        self
-    }
+  /// Set custom error handler
+  pub fn error_handler<F>(mut self, f: F) -> Self
+  where
+    F: Fn(Error, &HttpRequest) -> actix_web::Error + Send + Sync + 'static,
+  {
+    self.ehandler = Some(Arc::new(f));
+    self
+  }
 }
 
 impl Default for QueryConfig {
-    fn default() -> Self {
-        QueryConfig { ehandler: None }
-    }
+  fn default() -> Self {
+    QueryConfig { ehandler: None }
+  }
 }
 
 /// Extract and validate typed information from the request's query.
@@ -112,45 +112,45 @@ impl Default for QueryConfig {
 pub struct ValidatedQuery<T>(pub T);
 
 impl<T> AsRef<T> for ValidatedQuery<T> {
-    fn as_ref(&self) -> &T {
-        &self.0
-    }
+  fn as_ref(&self) -> &T {
+    &self.0
+  }
 }
 
 impl<T> Deref for ValidatedQuery<T> {
-    type Target = T;
+  type Target = T;
 
-    fn deref(&self) -> &T {
-        &self.0
-    }
+  fn deref(&self) -> &T {
+    &self.0
+  }
 }
 
 impl<T> ops::DerefMut for ValidatedQuery<T> {
-    fn deref_mut(&mut self) -> &mut T {
-        &mut self.0
-    }
+  fn deref_mut(&mut self) -> &mut T {
+    &mut self.0
+  }
 }
 
 impl<T: fmt::Debug> fmt::Debug for ValidatedQuery<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
-    }
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    self.0.fmt(f)
+  }
 }
 
 impl<T: fmt::Display> fmt::Display for ValidatedQuery<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
-    }
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    self.0.fmt(f)
+  }
 }
 
 impl<T> ValidatedQuery<T>
 where
-    T: Validate,
+  T: Validate,
 {
-    /// Deconstruct to an inner value.
-    pub fn into_inner(self) -> T {
-        self.0
-    }
+  /// Deconstruct to an inner value.
+  pub fn into_inner(self) -> T {
+    self.0
+  }
 }
 
 /// Extract typed information from the request's query.
@@ -192,44 +192,44 @@ where
 /// ```
 impl<T> FromRequest for ValidatedQuery<T>
 where
-    T: de::DeserializeOwned + Validate,
+  T: de::DeserializeOwned + Validate,
 {
-    type Error = actix_web::Error;
-    type Future = Ready<Result<Self, Self::Error>>;
-    type Config = QueryConfig;
+  type Error = actix_web::Error;
+  type Future = Ready<Result<Self, Self::Error>>;
+  type Config = QueryConfig;
 
-    /// Builds Query struct from request and provides validation mechanism
-    #[inline]
-    fn from_request(
-        req: &actix_web::web::HttpRequest,
-        _: &mut actix_http::Payload,
-    ) -> Self::Future {
-        let error_handler = req
-            .app_data::<Self::Config>()
-            .map(|c| c.ehandler.clone())
-            .unwrap_or(None);
+  /// Builds Query struct from request and provides validation mechanism
+  #[inline]
+  fn from_request(
+    req: &actix_web::web::HttpRequest,
+    _: &mut actix_web::dev::Payload,
+  ) -> Self::Future {
+    let error_handler = req
+      .app_data::<Self::Config>()
+      .map(|c| c.ehandler.clone())
+      .unwrap_or(None);
 
-        serde_urlencoded::from_str::<T>(req.query_string())
-            .map_err(Error::from)
-            .and_then(|value| {
-                value
-                    .validate()
-                    .map(move |_| value)
-                    .map_err(Error::Validate)
-            })
-            .map_err(move |e| {
-                log::debug!(
-                    "Failed during Query extractor validation. \
+    serde_urlencoded::from_str::<T>(req.query_string())
+      .map_err(Error::from)
+      .and_then(|value| {
+        value
+          .validate()
+          .map(move |_| value)
+          .map_err(Error::Validate)
+      })
+      .map_err(move |e| {
+        log::debug!(
+          "Failed during Query extractor validation. \
                      Request path: {:?}",
-                    req.path()
-                );
-                if let Some(error_handler) = error_handler {
-                    (error_handler)(e, req)
-                } else {
-                    e.into()
-                }
-            })
-            .map(|value| ok(ValidatedQuery(value)))
-            .unwrap_or_else(|e| err(e))
-    }
+          req.path()
+        );
+        if let Some(error_handler) = error_handler {
+          (error_handler)(e, req)
+        } else {
+          e.into()
+        }
+      })
+      .map(|value| ok(ValidatedQuery(value)))
+      .unwrap_or_else(|e| err(e))
+  }
 }
